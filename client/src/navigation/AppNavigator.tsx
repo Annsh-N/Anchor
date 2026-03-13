@@ -1,6 +1,9 @@
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View, Platform } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import React, { useEffect } from "react";
+import * as Notifications from "expo-notifications";
+import * as Location from "expo-location";
 
 import { useAuth } from "../context/AuthContext";
 import { NearbyAnchor } from "../services/anchorService";
@@ -13,6 +16,16 @@ import EditAnchor from "../screens/EditAnchor";
 import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
 import ResetPasswordScreen from "../screens/ResetPasswordScreen";
 import EditProfileScreen from "../screens/EditProfileScreen";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 export type RootStackParamList = {
   Login: undefined;
@@ -45,6 +58,35 @@ const colors = {
 
 export default function AppNavigator() {
   const { status, session } = useAuth();
+
+  useEffect(() => {
+    const requestPermissions = async () => {
+      // Notifications
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== "granted") {
+        console.log("Failed to get push token for push notification!");
+        return;
+      }
+
+      // Location
+      let { status: locationStatus } = await Location.requestForegroundPermissionsAsync();
+      if (locationStatus !== 'granted') {
+        console.log('Permission to access location was denied');
+        return;
+      }
+      let { status: backgroundLocationStatus } = await Location.requestBackgroundPermissionsAsync();
+      if (backgroundLocationStatus !== 'granted') {
+        console.log('Permission to access background location was denied');
+      }
+    };
+
+    requestPermissions();
+  }, []);
 
   if (status === "loading") {
     return (

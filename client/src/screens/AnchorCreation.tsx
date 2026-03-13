@@ -27,6 +27,8 @@ import { apiRequest } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { CreateAnchorBody } from "../services/anchorService";
 
+import * as DocumentPicker from "expo-document-picker";
+
 
 // Dummy circle. TODO: CHANGE THEM LATER TO GET FROM BACKEND!!!
 const DUMMY_CIRCLES = [
@@ -49,6 +51,8 @@ export default function AnchorCreation({ navigation, route }: Props) {
   const [visibility, setVisibility] = useState<"Public" | "Circle" | "Private">("Public");
   const [maxUnlock, setMaxUnlock] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attachment, setAttachment] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
+
 
   // Date Entry
   const [creationTime, setCreationTime] = useState<Date>(new Date());
@@ -212,6 +216,21 @@ export default function AnchorCreation({ navigation, route }: Props) {
     if (tagInput.trim()) addTag(tagInput);
   };
 
+  const handlePickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*", // any file type
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled === false) {
+        setAttachment(result.assets[0]);
+      }
+    } catch (err) {
+      Alert.alert("Error", "Failed to pick document.");
+      console.error("Document Picker Error:", err);
+    }
+  };
+
 
   // Submitting logic
   const handleDropAnchor = async () => {
@@ -227,26 +246,59 @@ export default function AnchorCreation({ navigation, route }: Props) {
       return;
     }
 
-    const visibilityMap = { Public: "PUBLIC", Circle: "CIRCLE_ONLY", Private: "PRIVATE" } as const;
-
-    const body: CreateAnchorBody = {
-      title: title.trim(),
-      latitude,
-      longitude,
-      visibility: visibilityMap[visibility],
-      unlock_radius: Math.round(radius),
-      activation_time: creationTime.toISOString(),
-      expiration_time: alwaysActive ? null : (expiryTime ? expiryTime.toISOString() : null),
-      always_active: alwaysActive,
-      description: content.trim() || null,
-      max_unlock: maxUnlock.trim() ? parseInt(maxUnlock, 10) : null,
-      tags: tags
-    };
     setIsSubmitting(true);
+
     try {
+      let requestBody: CreateAnchorBody | FormData;
+      const visibilityMap = { Public: "PUBLIC", Circle: "CIRCLE_ONLY", Private: "PRIVATE" } as const;
+
+      if (contentType === "file" && attachment) {
+        const formData = new FormData();
+        formData.append("title", title.trim());
+        formData.append("latitude", String(latitude));
+        formData.append("longitude", String(longitude));
+        formData.append("visibility", visibilityMap[visibility]);
+        formData.append("unlock_radius", String(Math.round(radius)));
+        formData.append("activation_time", creationTime.toISOString());
+        if (!alwaysActive && expiryTime) {
+          formData.append("expiration_time", expiryTime.toISOString());
+        }
+        formData.append("always_active", String(alwaysActive));
+        if (content.trim()) {
+          formData.append("description", content.trim());
+        }
+        if (maxUnlock.trim()) {
+          formData.append("max_unlock", maxUnlock.trim());
+        }
+        tags.forEach(tag => formData.append("tags", tag));
+
+        // The attachment URI needs to be handled correctly for upload
+        const file = {
+          uri: attachment.uri,
+          name: attachment.name,
+          type: attachment.mimeType || "application/octet-stream",
+        } as any;
+        formData.append("attachment", file);
+        requestBody = formData;
+      } else {
+        requestBody = {
+          title: title.trim(),
+          latitude,
+          longitude,
+          visibility: visibilityMap[visibility],
+          unlock_radius: Math.round(radius),
+          activation_time: creationTime.toISOString(),
+          expiration_time: alwaysActive ? null : (expiryTime ? expiryTime.toISOString() : null),
+          always_active: alwaysActive,
+          description: content.trim() || null,
+          max_unlock: maxUnlock.trim() ? parseInt(maxUnlock, 10) : null,
+          tags: tags,
+        };
+      }
+
       await apiRequest("/anchors/", {
         method: "POST",
-        body,
+        body: requestBody,
         token: session.access_token,
       });
       navigation.navigate("Discovery");
@@ -368,11 +420,29 @@ export default function AnchorCreation({ navigation, route }: Props) {
             />
           )}
           {contentType === "file" && (
-            <TouchableOpacity style={[styles.input, styles.filePlaceholder]} activeOpacity={0.7}>
-              <Feather name="upload" size={22} color={colors.accentPink} />
-              <Text style={styles.filePlaceholderText}>Tap to attach a file</Text>
-              <Text style={styles.filePlaceholderSub}>PDF, image, audio, etc.</Text>
-            </TouchableOpacity>
+            <>
+              {attachment ? (
+                <View style={[styles.input, styles.fileCard]}>
+                  <Feather name="file-text" size={22} color={colors.accentPink} />
+                  <Text style={styles.fileName} numberOfLines={1}>
+                    {attachment.name}
+                  </Text>
+                  <TouchableOpacity onPress={() => setAttachment(null)} style={styles.clearFileBtn}>
+                    <Feather name="x" size={16} color={colors.muted} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.input, styles.filePlaceholder]}
+                  activeOpacity={0.7}
+                  onPress={handlePickDocument}
+                >
+                  <Feather name="upload" size={22} color={colors.accentPink} />
+                  <Text style={styles.filePlaceholderText}>Tap to attach a file</Text>
+                  <Text style={styles.filePlaceholderSub}>PDF, image, audio, etc.</Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
           {contentType === "link" && (
             <TextInput
@@ -826,6 +896,25 @@ const styles = StyleSheet.create({
   filePlaceholderSub: {
     fontSize: 13,
     color: colors.muted,
+  },
+  fileCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.selectedCanvas,
+    paddingVertical: 12,
+  },
+  fileName: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.text,
+    marginLeft: 12,
+    marginRight: 8,
+  },
+  clearFileBtn: {
+    padding: 6,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 15,
   },
   optionCard: {
     flexDirection: "row",
