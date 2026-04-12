@@ -9,6 +9,7 @@ Coverage:
 
 import os
 import uuid
+from datetime import datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy import text
@@ -87,12 +88,28 @@ def fetch_report_row(report_id: str):
     try:
         return db.execute(
             text("""
-                SELECT report_id, anchor_id, status, reviewed_at
+                SELECT report_id, anchor_id, status, reviewed_at, created_at
                 FROM reports
                 WHERE report_id = :report_id
             """),
             {"report_id": report_id},
         ).fetchone()
+    finally:
+        db.close()
+
+
+def set_report_created_at(report_id: str, created_at: datetime):
+    db = SessionLocal()
+    try:
+        db.execute(
+            text("""
+                UPDATE reports
+                SET created_at = :created_at
+                WHERE report_id = :report_id
+            """),
+            {"created_at": created_at, "report_id": report_id},
+        )
+        db.commit()
     finally:
         db.close()
 
@@ -147,6 +164,11 @@ def test_admin_reports_endpoint_returns_only_pending_reports():
         second_pending_anchor_id,
         "Most recent pending comment",
     )
+
+    base_time = datetime.utcnow().replace(microsecond=0)
+    set_report_created_at(pending_report_id, base_time)
+    set_report_created_at(dismissed_report_id, base_time + timedelta(minutes=1))
+    set_report_created_at(newest_pending_report_id, base_time + timedelta(minutes=2))
 
     response = client.get(
         "/admin/reports",

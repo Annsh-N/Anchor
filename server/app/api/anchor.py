@@ -191,6 +191,15 @@ def _creator_is_not_banned_clause(table_alias: str) -> str:
     )
 
 
+def _viewer_can_access_anchor_clause(table_alias: str) -> str:
+    return (
+        f" AND ("
+        f"{table_alias}.visibility != 'PRIVATE' "
+        f"OR {table_alias}.creator_id = :session_user_id"
+        f")"
+    )
+
+
 def _build_anchor_filters(
     table_alias: str,
     visibility=None,
@@ -359,8 +368,6 @@ def create_anchor(
     normalized_tags = _normalize_stored_tags(payload.tags)
     tags_json = json.dumps(normalized_tags) if normalized_tags else None
 
-    activation_time = activation_time if activation_time is not None else datetime.utcnow()
-
     db.execute(
         text("""
             INSERT INTO anchors
@@ -434,30 +441,32 @@ def update_anchor(
             detail="visibility must be PUBLIC, PRIVATE, or CIRCLE_ONLY",
         )
 
+    next_activation_time = _to_utc_naive(payload.activation_time)
+    next_expiration_time = _to_utc_naive(payload.expiration_time)
     now = datetime.utcnow()
-    if payload.expiration_time is not None and payload.expiration_time < now:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="expiration_time cannot be in the past",
-        )
 
     # Resolve what the effective activation/expiration will be after this update,
     # using the incoming payload value if provided, otherwise falling back to the
     # existing DB value. This is needed to validate the window before writing anything.
     effective_activation = (
-        payload.activation_time if payload.activation_time is not None else row.activation_time
+        next_activation_time if payload.activation_time is not None else row.activation_time
     )
     # If always_active is being set to True, clear expiration regardless of what was sent.
     # Otherwise use the new expiration_time if provided, or keep the existing one.
     if payload.always_active is True:
         effective_expiration = None
     elif payload.expiration_time is not None:
-        effective_expiration = payload.expiration_time
+        effective_expiration = next_expiration_time
     else:
         effective_expiration = row.expiration_time
 
     # Validate the resolved window — expiration must come after activation
-    if effective_activation and effective_expiration and effective_expiration <= effective_activation:
+    if (
+        effective_activation
+        and effective_expiration
+        and effective_expiration <= effective_activation
+        and effective_expiration >= now
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="expiration_time must be after activation_time",
@@ -479,12 +488,12 @@ def update_anchor(
     if payload.altitude is not None:
         fields["altitude"] = payload.altitude
     if payload.activation_time is not None:
-        fields["activation_time"] = payload.activation_time
+        fields["activation_time"] = next_activation_time
     # always_active=True explicitly clears expiration_time in the DB
     if payload.always_active is True:
         fields["expiration_time"] = None
     elif payload.expiration_time is not None:
-        fields["expiration_time"] = payload.expiration_time
+        fields["expiration_time"] = next_expiration_time
     if payload.tags is not None:
         normalized_tags = _normalize_stored_tags(payload.tags)
         fields["tags"] = json.dumps(normalized_tags) if normalized_tags else None
@@ -670,7 +679,12 @@ def get_all_anchors(
         content_type=content_type,
         tags=tags,
     )
-    filters = _creator_is_not_banned_clause("a") + filters
+    filter_params["session_user_id"] = user_id
+    filters = (
+        _creator_is_not_banned_clause("a")
+        + _viewer_can_access_anchor_clause("a")
+        + filters
+    )
 
     rows = db.execute(
         text(f"""
@@ -719,12 +733,14 @@ def get_nearby_anchor_filter_options(
     params = {
         "radius_m": radius_km * 1000,
         "user_point": f"POINT({lon} {lat})",
+        "session_user_id": user_id,
     }
     filters = """
         AND (a.activation_time IS NULL OR a.activation_time <= UTC_TIMESTAMP())
         AND (a.expiration_time IS NULL OR a.expiration_time >= UTC_TIMESTAMP())
     """
     filters += _creator_is_not_banned_clause("a")
+    filters += _viewer_can_access_anchor_clause("a")
     extra_filters, extra_params = _build_anchor_filters(
         table_alias="a",
         visibility=visibility,
@@ -833,6 +849,7 @@ def get_nearby_anchors(
         AND (a.expiration_time IS NULL OR a.expiration_time >= UTC_TIMESTAMP())
     """
     filters += _creator_is_not_banned_clause("a")
+    filters += _viewer_can_access_anchor_clause("a")
 
     extra_filters, extra_params = _build_anchor_filters(
         table_alias="a",
