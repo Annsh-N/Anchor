@@ -57,12 +57,6 @@ jest.mock("@expo/vector-icons", () => {
   };
 });
 
-jest.mock("../../../assets/anchor-logo.svg", () => {
-  const mockReact = require("react");
-  const { View } = require("react-native");
-  return () => mockReact.createElement(View, null);
-});
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const mockedUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;

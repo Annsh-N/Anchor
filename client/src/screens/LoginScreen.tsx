@@ -5,6 +5,7 @@ import * as WebBrowser from "expo-web-browser";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -28,7 +29,8 @@ import {
   loadBiometricSession,
   promptBiometric,
 } from "../services/biometricService";
-import AnchorLogo from "../../assets/anchor-logo.svg";
+
+const anchorLogo = require("../../assets/anchor-logo.png");
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 
@@ -239,7 +241,7 @@ export default function LoginScreen({ navigation }: Props) {
           <View style={styles.content}>
             <View style={styles.topSection}>
             <View style={styles.hero}>
-              <AnchorLogo width={300} height={60} />
+              <Image source={anchorLogo} style={styles.logo} resizeMode="contain" />
               {/* <Text style={styles.subtitle}>Sign in to continue</Text> */}
             </View>
           </View>
@@ -435,6 +437,10 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: "center",
     justifyContent: "center",
+  },
+  logo: {
+    width: 300,
+    height: 60,
   },
   subtitle: {
     marginTop: 5,

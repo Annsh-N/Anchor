@@ -36,6 +36,28 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     INDEX idx_sessions_user_id (user_id)
 );
 
+CREATE TABLE IF NOT EXISTS circles (
+    circle_id       CHAR(36)        PRIMARY KEY,
+    owner_id        CHAR(36)        NOT NULL,
+    name            VARCHAR(255)    NOT NULL,
+    description     TEXT            NULL,
+    visibility      ENUM('PUBLIC', 'PRIVATE') NOT NULL DEFAULT 'PRIVATE',
+    created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (owner_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_circles_owner (owner_id)
+);
+
+CREATE TABLE IF NOT EXISTS circle_members (
+    circle_id       CHAR(36)        NOT NULL,
+    user_id         CHAR(36)        NOT NULL,
+    joined_at       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (circle_id, user_id),
+    FOREIGN KEY (circle_id) REFERENCES circles(circle_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS anchors (
     anchor_id           CHAR(36)                                        PRIMARY KEY,
     creator_id          CHAR(36)                                        NOT NULL,
@@ -163,28 +185,6 @@ CREATE TABLE IF NOT EXISTS blocked_users (
     FOREIGN KEY (blocker_id) REFERENCES users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (blocked_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
     INDEX idx_blocked_users_blocked_user (blocked_user_id)
-);
-
-CREATE TABLE IF NOT EXISTS circles (
-    circle_id       CHAR(36)        PRIMARY KEY,
-    owner_id        CHAR(36)        NOT NULL,
-    name            VARCHAR(255)    NOT NULL,
-    description     TEXT            NULL,
-    visibility      ENUM('PUBLIC', 'PRIVATE') NOT NULL DEFAULT 'PRIVATE',
-    created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (owner_id) REFERENCES users(user_id) ON DELETE CASCADE,
-    INDEX idx_circles_owner (owner_id)
-);
-
-CREATE TABLE IF NOT EXISTS circle_members (
-    circle_id       CHAR(36)        NOT NULL,
-    user_id         CHAR(36)        NOT NULL,
-    joined_at       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    PRIMARY KEY (circle_id, user_id),
-    FOREIGN KEY (circle_id) REFERENCES circles(circle_id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS anchor_votes (

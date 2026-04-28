@@ -3,6 +3,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -18,10 +19,11 @@ import {
 import type { RootStackParamList } from "../navigation/AppNavigator";
 import { useAuth } from "../context/AuthContext";
 import { register as registerUser } from "../services/authService";
-import AnchorLogo from "../../assets/anchor-logo.svg";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Register">;
+
+const anchorLogo = require("../../assets/anchor-logo.png");
 
 export default function RegisterScreen({ navigation }: Props) {
   const { signIn } = useAuth();
@@ -102,7 +104,7 @@ export default function RegisterScreen({ navigation }: Props) {
             showsVerticalScrollIndicator={false}
           >
           <View style={styles.hero}>
-            <AnchorLogo width={240} height={49} />
+            <Image source={anchorLogo} style={styles.logo} resizeMode="contain" />
             <Text style={styles.subtitle}>Create your Anchor account</Text>
           </View>
 
@@ -239,6 +241,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 8,
     marginBottom: 16,
+  },
+  logo: {
+    width: 240,
+    height: 49,
   },
   subtitle: {
     marginTop: 2,
