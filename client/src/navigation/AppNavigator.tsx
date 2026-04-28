@@ -7,7 +7,7 @@ import { AnchorDraft, NearbyAnchor } from "../services/anchorService";
 import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
 import DiscoveryScreen from "../screens/DiscoveryScreen";
-import ARScreen from "../screens/ARScreen";
+import ARScreenEntry from "../screens/ARScreenEntry";
 import AnchorCreation from "../screens/AnchorCreation";
 import AnchorPreviewScreen from "../screens/AnchorPreviewScreen";
 import EditAnchor from "../screens/EditAnchor";
@@ -94,7 +94,7 @@ export default function AppNavigator() {
         {status === "authenticated" && session ? (
           <>
             <Stack.Screen name="Discovery" component={DiscoveryScreen} options={{ title: "Discover" }} />
-            <Stack.Screen name="AR" component={ARScreen} options={{ title: "AR View" }} />
+            <Stack.Screen name="AR" component={ARScreenEntry} options={{ title: "AR View" }} />
             <Stack.Screen name="AnchorCreation" component={AnchorCreation} options={{ title: "Anchor Details" }} />
             <Stack.Screen name="AnchorPreview" component={AnchorPreviewScreen} options={{ title: "Preview Anchor" }} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: "Edit Profile" }} />

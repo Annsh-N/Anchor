@@ -495,7 +495,8 @@ def create_anchor(
     normalized_tags = _normalize_stored_tags(payload.tags)
     tags_json = json.dumps(normalized_tags) if normalized_tags else None
 
-    activation_time = activation_time if activation_time is not None else datetime.utcnow()
+    # Anchors without an explicit activation window stay immediately accessible.
+    activation_time = activation_time if activation_time is not None else None
 
     db.execute(
         text("""
@@ -573,25 +574,20 @@ def update_anchor(
         )
     target_circle_id = _resolve_circle_id_for_update(db, payload, row, user_id)
 
-    now = datetime.utcnow()
-    if payload.expiration_time is not None and payload.expiration_time < now:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="expiration_time cannot be in the past",
-        )
-
+    normalized_activation_time = _to_utc_naive(payload.activation_time)
+    normalized_expiration_time = _to_utc_naive(payload.expiration_time)
     # Resolve what the effective activation/expiration will be after this update,
     # using the incoming payload value if provided, otherwise falling back to the
     # existing DB value. This is needed to validate the window before writing anything.
     effective_activation = (
-        payload.activation_time if payload.activation_time is not None else row.activation_time
+        normalized_activation_time if normalized_activation_time is not None else row.activation_time
     )
     # If always_active is being set to True, clear expiration regardless of what was sent.
     # Otherwise use the new expiration_time if provided, or keep the existing one.
     if payload.always_active is True:
         effective_expiration = None
-    elif payload.expiration_time is not None:
-        effective_expiration = payload.expiration_time
+    elif normalized_expiration_time is not None:
+        effective_expiration = normalized_expiration_time
     else:
         effective_expiration = row.expiration_time
 
@@ -619,13 +615,13 @@ def update_anchor(
         fields["max_unlock"] = payload.max_unlock
     if payload.altitude is not None:
         fields["altitude"] = payload.altitude
-    if payload.activation_time is not None:
-        fields["activation_time"] = payload.activation_time
+    if normalized_activation_time is not None:
+        fields["activation_time"] = normalized_activation_time
     # always_active=True explicitly clears expiration_time in the DB
     if payload.always_active is True:
         fields["expiration_time"] = None
-    elif payload.expiration_time is not None:
-        fields["expiration_time"] = payload.expiration_time
+    elif normalized_expiration_time is not None:
+        fields["expiration_time"] = normalized_expiration_time
     if payload.tags is not None:
         normalized_tags = _normalize_stored_tags(payload.tags)
         fields["tags"] = json.dumps(normalized_tags) if normalized_tags else None
@@ -834,17 +830,17 @@ def get_all_anchors(
                     SELECT GROUP_CONCAT(DISTINCT c.content_type ORDER BY c.content_type SEPARATOR ',')
                     FROM Content c
                     WHERE c.anchor_id = a.anchor_id
-                ) AS content_type, 
-             COALESCE((
-    SELECT SUM(CASE WHEN vote = 'UPVOTE' THEN 1 ELSE -1 END)
-    FROM anchor_votes av
-    WHERE av.anchor_id = a.anchor_id
-), 0) AS net_votes,
-(
-    SELECT vote FROM anchor_votes av
-    WHERE av.anchor_id = a.anchor_id AND av.user_id = :session_user_id
-    LIMIT 1
-) AS user_vote,
+                ) AS content_type,
+                COALESCE((
+                    SELECT SUM(CASE WHEN vote = 'UPVOTE' THEN 1 ELSE -1 END)
+                    FROM anchor_votes av
+                    WHERE av.anchor_id = a.anchor_id
+                ), 0) AS net_votes,
+                (
+                    SELECT vote FROM anchor_votes av
+                    WHERE av.anchor_id = a.anchor_id AND av.user_id = :session_user_id
+                    LIMIT 1
+                ) AS user_vote
             FROM anchors a
             WHERE 1 = 1
             {filters}

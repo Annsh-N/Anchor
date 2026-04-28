@@ -3,7 +3,6 @@ import { render, fireEvent, waitFor, cleanup } from '@testing-library/react-nati
 import AnchorCreation from '../AnchorCreation';
 import * as DocumentPicker from "expo-document-picker";
 import { Alert } from 'react-native';
-import { AuthProvider } from '../../context/AuthContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 

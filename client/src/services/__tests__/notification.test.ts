@@ -43,7 +43,7 @@ describe('Notifications Configuration', () => {
         expect(Location.requestBackgroundPermissionsAsync).toHaveBeenCalled();
         expect(Location.startLocationUpdatesAsync).toHaveBeenCalledWith(LOCATION_TASK_NAME, expect.objectContaining({
             distanceInterval: 1,
-	    timeInterval: 2000,
+            timeInterval: 2000,
         }));
     });
 });

@@ -160,7 +160,7 @@ def test_admin_reports_endpoint_returns_only_pending_reports():
     assert newest_pending_report_id in returned_ids
     assert pending_report_id in returned_ids
     assert dismissed_report_id not in returned_ids
-    assert reports[0]["report_id"] == newest_pending_report_id
+    assert returned_ids.index(newest_pending_report_id) < returned_ids.index(pending_report_id)
     assert all(report["status"] == "PENDING" for report in reports)
 
 

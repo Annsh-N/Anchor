@@ -13,6 +13,11 @@ import {
   loadAuthSession,
   saveAuthSession,
 } from "../../services/authStorage";
+import {
+  clearBiometricSession,
+  getBiometricPreference,
+  saveBiometricSession,
+} from "../../services/biometricService";
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
@@ -29,12 +34,21 @@ jest.mock("../../services/authStorage", () => ({
   saveAuthSession: jest.fn(),
 }));
 
+jest.mock("../../services/biometricService", () => ({
+  clearBiometricSession: jest.fn(),
+  getBiometricPreference: jest.fn(),
+  saveBiometricSession: jest.fn(),
+}));
+
 const mockedLogout = logout as jest.MockedFunction<typeof logout>;
 const mockedVerifyAccessToken = verifyAccessToken as jest.MockedFunction<typeof verifyAccessToken>;
 const mockedRefreshAccessToken = refreshAccessToken as jest.MockedFunction<typeof refreshAccessToken>;
 const mockedClearAuthSession = clearAuthSession as jest.MockedFunction<typeof clearAuthSession>;
 const mockedLoadAuthSession = loadAuthSession as jest.MockedFunction<typeof loadAuthSession>;
 const mockedSaveAuthSession = saveAuthSession as jest.MockedFunction<typeof saveAuthSession>;
+const mockedClearBiometricSession = clearBiometricSession as jest.MockedFunction<typeof clearBiometricSession>;
+const mockedGetBiometricPreference = getBiometricPreference as jest.MockedFunction<typeof getBiometricPreference>;
+const mockedSaveBiometricSession = saveBiometricSession as jest.MockedFunction<typeof saveBiometricSession>;
 
 const authPayload: AuthResponse = {
   user_id: "user-1",
@@ -54,6 +68,9 @@ beforeEach(() => {
   mockedLoadAuthSession.mockResolvedValue(null);
   mockedSaveAuthSession.mockResolvedValue(undefined);
   mockedClearAuthSession.mockResolvedValue(undefined);
+  mockedClearBiometricSession.mockResolvedValue(undefined);
+  mockedGetBiometricPreference.mockResolvedValue(false);
+  mockedSaveBiometricSession.mockResolvedValue(undefined);
   mockedLogout.mockResolvedValue({ message: "Successfully logged out" });
   mockedVerifyAccessToken.mockResolvedValue({
     valid: true,
@@ -85,6 +102,7 @@ test("signOut clears local auth state and storage when API logout succeeds", asy
 
   expect(mockedLogout).toHaveBeenCalledWith({ refresh_token: authPayload.refresh_token });
   expect(mockedClearAuthSession).toHaveBeenCalledTimes(1);
+  expect(mockedClearBiometricSession).toHaveBeenCalledTimes(1);
   expect(result.current.status).toBe("unauthenticated");
   expect(result.current.session).toBeNull();
 });
@@ -105,6 +123,7 @@ test("signOut still removes local tokens when API logout fails", async () => {
 
   expect(mockedLogout).toHaveBeenCalledWith({ refresh_token: authPayload.refresh_token });
   expect(mockedClearAuthSession).toHaveBeenCalledTimes(1);
+  expect(mockedClearBiometricSession).toHaveBeenCalledTimes(1);
   expect(result.current.status).toBe("unauthenticated");
   expect(result.current.session).toBeNull();
 });
@@ -119,6 +138,7 @@ test("signOut without an active session still clears local storage", async () =>
 
   expect(mockedLogout).not.toHaveBeenCalled();
   expect(mockedClearAuthSession).toHaveBeenCalledTimes(1);
+  expect(mockedClearBiometricSession).toHaveBeenCalledTimes(1);
   expect(result.current.status).toBe("unauthenticated");
   expect(result.current.session).toBeNull();
 });
