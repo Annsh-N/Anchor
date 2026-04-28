@@ -6,6 +6,7 @@ import {
     Pressable,
     ScrollView,
     StyleSheet,
+    Switch,
     Text,
     TextInput,
     TouchableOpacity,
@@ -87,6 +88,9 @@ export default function EditAnchor({ navigation, route }: Props) {
     const [tags, setTags] = useState<string[]>(anchor.tags ?? []);
     const [tagInput, setTagInput] = useState("");
     const [tagInputFocused, setTagInputFocused] = useState(false);
+
+    // Savable
+    const [isSavable, setIsSavable] = useState(anchor.is_savable ?? true);
 
     // ─── Document Picker ──────────────────────────────────────────────────────
     const [selectedFile, setSelectedFile] = useState<{ uri: string; name: string; type: string } | null>(null);
@@ -235,6 +239,7 @@ export default function EditAnchor({ navigation, route }: Props) {
                 activation_time: finalActivationTime,
                 expiration_time: expiryTime ? expiryTime.toISOString() : null,
                 tags,
+                is_savable: isSavable,
             }, session.access_token);
 
             if (contentType === "file" && selectedFile) {
@@ -551,6 +556,24 @@ export default function EditAnchor({ navigation, route }: Props) {
                         ))}
                     </View>
 
+                    {/* SAVABLE TOGGLE */}
+                    <View style={styles.savableRow}>
+                        <View style={styles.savableTextCol}>
+                            <Text style={styles.savableTitle}>Allow saving to library</Text>
+                            <Text style={styles.savableHint}>
+                                {isSavable
+                                    ? "Others can save this anchor to their library"
+                                    : "No one can save this anchor to their library"}
+                            </Text>
+                        </View>
+                        <Switch
+                            value={isSavable}
+                            onValueChange={setIsSavable}
+                            trackColor={{ false: "#e5e7eb", true: colors.accentPink }}
+                            thumbColor={colors.white}
+                        />
+                    </View>
+
                 </ScrollView>
 
                 {/* FOOTER */}
@@ -798,6 +821,15 @@ const styles = StyleSheet.create({
 
     suggestedLabel: { fontSize: 13, color: colors.muted, marginBottom: 8 },
     suggestedRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 24 },
+
+    savableRow: {
+        flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+        borderWidth: 1, borderColor: colors.border, borderRadius: 12,
+        padding: 16, marginBottom: 8, backgroundColor: colors.canvas,
+    },
+    savableTextCol: { flex: 1, marginRight: 12 },
+    savableTitle: { fontSize: 15, fontWeight: "600", color: colors.text, marginBottom: 2 },
+    savableHint: { fontSize: 13, color: colors.muted },
     suggestedChip: {
         flexDirection: "row", alignItems: "center",
         borderWidth: 1, borderColor: colors.border,
