@@ -169,6 +169,7 @@ export type UpdateAnchorBody = {
   activation_time?: string | null;
   expiration_time?: string | null;
   tags?: string[] | null;
+  is_savable?: boolean;
 };
 
 export async function updateAnchor(anchorId: string, body: UpdateAnchorBody, token: string) {
